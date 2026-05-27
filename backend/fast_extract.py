@@ -4,9 +4,12 @@ import csv
 from pathlib import Path
 
 zip_path = "all_json.zip"
-csv_path = "all_deliveries.csv"
+csv_path = "data/all_deliveries.csv"
 
 rows_written = 0
+
+# Ensure target directory exists
+Path(csv_path).parent.mkdir(parents=True, exist_ok=True)
 
 with zipfile.ZipFile(zip_path, "r") as zf:
 

@@ -9,12 +9,15 @@ const port = 8000;
 app.use(cors());
 app.use(express.json());
 
-const csvPath = 'data/all_deliveries.csv';
+let csvPath = 'data/all_deliveries.csv';
+if (!fs.existsSync(csvPath)) {
+    csvPath = 'all_deliveries.csv';
+}
 
-console.log("Loading database (CSV)... this might take a moment.");
+console.log(`Loading database (CSV) from ${csvPath}... this might take a moment.`);
 
 if (!fs.existsSync(csvPath)) {
-    console.error(`ERROR: Database not found at ${csvPath}. Please run extraction first.`);
+    console.error(`ERROR: Database not found at data/all_deliveries.csv or all_deliveries.csv. Please run extraction first.`);
     process.exit(1);
 }
 

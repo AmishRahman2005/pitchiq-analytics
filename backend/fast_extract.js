@@ -3,12 +3,18 @@ import path from 'path';
 import AdmZip from 'adm-zip';
 
 const zipPath = "all_json.zip";
-const csvPath = "all_deliveries.csv";
+const csvPath = "data/all_deliveries.csv";
 
 if (!fs.existsSync(zipPath)) {
     console.error(`ERROR: '${zipPath}' not found!`);
     console.error("Please place your 'all_json.zip' in the backend folder beside this script.");
     process.exit(1);
+}
+
+// Ensure target directory exists
+const parentDir = path.dirname(csvPath);
+if (!fs.existsSync(parentDir)) {
+    fs.mkdirSync(parentDir, { recursive: true });
 }
 
 console.log("Loading zip file... This might take a few moments.");
