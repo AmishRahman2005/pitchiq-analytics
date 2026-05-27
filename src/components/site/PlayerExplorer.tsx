@@ -665,12 +665,6 @@ export function PlayerExplorer() {
                 );
               })()}
 
-              <div className="rounded-3xl glass-strong p-4 shadow-card">
-                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  <Crosshair size={11} /> Key weakness
-                </div>
-                <p className="mt-2 text-sm font-medium text-foreground">{selected.weakness}</p>
-              </div>
             </div>
           </motion.div>
           ) : (
