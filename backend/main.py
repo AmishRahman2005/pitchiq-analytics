@@ -42,8 +42,116 @@ print("Database indexing completed! Server ready.")
 def read_root():
     return {"status": "online", "total_records": len(df)}
 
+def generate_player_ai_analysis(bat_stats, bowl_stats, is_batter):
+    if is_batter:
+        if not bat_stats:
+            return {
+                "weakness": "Variable bounce & lateral seam movement",
+                "strength": "Lofted cover drive over the infield"
+            }
+        
+        runs = bat_stats.get("runs", 0)
+        balls = bat_stats.get("balls_faced", 0)
+        dismissals = bat_stats.get("dismissals", 0)
+        avg = runs / dismissals if dismissals > 0 else runs
+        sr = (runs / balls * 100) if balls > 0 else 0
+        
+        # Find top bowler who dismissed them
+        dismissed_by = bat_stats.get("dismissed_by", {})
+        worst_bowler = "None"
+        max_dismissals = 0
+        if dismissed_by:
+            sorted_dismissed = sorted(dismissed_by.items(), key=lambda x: x[1], reverse=True)
+            if sorted_dismissed:
+                worst_bowler = sorted_dismissed[0][0]
+                max_dismissals = sorted_dismissed[0][1]
+        
+        # Count spin vs pace outs
+        spinners = ["rashid", "ashwin", "jadeja", "chahal", "lyon", "narine", "maharaj", "shakib", "tahir", "ali", "santner", "sodhi", "hasaranga", "zampa", "kuldeep", "yuzvendra", "muralitharan", "warne", "kumble", "ajmal", "sharma", "axar", "trent", "boult"]
+        fast_outs = 0
+        spin_outs = 0
+        for bowler, count in dismissed_by.items():
+            b_lower = bowler.lower()
+            if any(s in b_lower for s in spinners):
+                spin_outs += count
+            else:
+                fast_outs += count
+        
+        # Build dynamic weakness
+        weakness = ""
+        if max_dismissals > 0:
+            if spin_outs > fast_outs:
+                weakness = f"Slow left-arm/wrist-spin. Struggles against drift, flight, and sharp turn. Modeled threat: {worst_bowler} (dismissed them {max_dismissals} times in live matchups)."
+            else:
+                weakness = f"High-velocity seam & swing corridor outside 4th/5th stump line. Susceptible to early-wicket risk when ball is moving. Modeled threat: {worst_bowler} (dismissed them {max_dismissals} times)."
+        else:
+            if avg < 25:
+                weakness = "Heavy swing & lateral seam movement corridor of uncertainty. High early-wicket risk before getting eyes set in."
+            elif sr < 110:
+                weakness = "Slow pacing and conservative strike rotation in middle overs. Vulnerable to defensive containing lines and spin squeeze traps."
+            else:
+                weakness = "Vulnerable to high-velocity short-pitched deliveries targeting the ribs and wide off-stump changes-of-pace."
+        
+        # Build dynamic strength
+        strength = ""
+        if avg >= 40 and sr >= 130:
+            strength = "Elite multi-format accumulator. Dominates cover drives and flick shots; exceptionally fast wrist work enables range-hitting inside the V."
+        elif avg >= 35:
+            strength = "Technically sound anchor. Possesses exceptional backfoot control, superb leave judgment in the corridor of uncertainty, and dominant pull shots."
+        elif sr >= 125:
+            strength = "High-velocity accelerator and boundary specialist. Dominates powerplays and death overs with innovative ramp and sweep shots."
+        else:
+            strength = "Disciplined batsman showing strong straight drive mechanics and high scoring conversion rates against overpitched deliveries."
+        
+        return {"weakness": weakness, "strength": strength}
+    else:
+        if not bowl_stats:
+            return {
+                "weakness": "Flat wickets & heavy boundary hitters",
+                "strength": "Disciplined length bowler"
+            }
+            
+        economy = bowl_stats.get("economy", 0)
+        wickets = bowl_stats.get("wickets", 0)
+        balls = bowl_stats.get("balls_bowled", 0)
+        sr = balls / wickets if wickets > 0 else 24
+        
+        # Find favorite target
+        wickets_list = bowl_stats.get("wickets_list", {})
+        favorite_target = "None"
+        max_wickets = 0
+        if wickets_list:
+            sorted_wickets = sorted(wickets_list.items(), key=lambda x: x[1], reverse=True)
+            if sorted_wickets:
+                favorite_target = sorted_wickets[0][0]
+                max_wickets = sorted_wickets[0][1]
+                
+        # Build dynamic weakness
+        weakness = ""
+        if economy > 8.5:
+            weakness = "Struggles to contain runs when batsmen target deep boundaries on flat batting tracks. Vulnerable to aggressive power-hitters under pressure."
+        elif sr > 30:
+            weakness = "Lacks lethal, wicket-taking deliveries on placid pitches; relies on defensive containing lines that batsman can comfortably navigate."
+        elif favorite_target != "None":
+            weakness = "Occasionally vulnerable to aggressive counter-attacks by left-handed batsmen who disrupt line and length adjustments."
+        else:
+            weakness = "Flat batting tracks and heavy boundary hitters. Performance drops when pitch offers zero lateral movement or seam bounce."
+            
+        # Build dynamic strength
+        strength = ""
+        if economy < 6.5 and sr < 20:
+            strength = "Elite strike bowler. Combines lethal wicket-taking deliveries (sharp leg-cutters/outswingers) with exceptional run containment."
+        elif economy < 7.2:
+            strength = "Superb defensive containment bowler. Exceptional accuracy targeting the blockhole and wide-stump channels under pressure."
+        elif sr < 22:
+            strength = "Aggressive wicket-taker. Exceptional bounce and lateral movement; excels at forcing top-order errors and breaking partnerships."
+        else:
+            strength = "Disciplined length bowler. Extremely reliable line and length, creating pressure through dot-ball consistency."
+            
+        return {"weakness": weakness, "strength": strength}
+
 @app.get("/player/{name}")
-def get_player_stats(name: str):
+def get_player_stats(name: str, role: str = None):
     name_lower = name.lower()
     
     # Filter data for when player is batter (ultra fast using indexed columns)
@@ -121,9 +229,19 @@ def get_player_stats(name: str):
             "wickets_list": wickets_list
         }
         
+    is_batter = len(bat_df) >= len(bowl_df)
+    if role:
+        if role == 'BAT' and len(bat_df) > 0:
+            is_batter = True
+        elif role == 'BOWL' and len(bowl_df) > 0:
+            is_batter = False
+    ai_analysis = generate_player_ai_analysis(bat_stats, bowl_stats, is_batter)
+    
     return {
         "name": actual_name,
-        "role": "BAT" if len(bat_df) >= len(bowl_df) else "BOWL",
+        "role": "BAT" if is_batter else "BOWL",
         "batting": bat_stats,
-        "bowling": bowl_stats
+        "bowling": bowl_stats,
+        "weakness": ai_analysis["weakness"],
+        "strength": ai_analysis["strength"]
     }

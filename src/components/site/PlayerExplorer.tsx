@@ -120,11 +120,11 @@ const createDynamicPlayer = (apiData: any): Player => {
     });
   }
 
-  let weakness = isBatter 
+  let weakness = apiData.weakness || (isBatter 
     ? "Variable bounce & lateral seam movement" 
-    : "Flat wickets & heavy boundary hitters";
+    : "Flat wickets & heavy boundary hitters");
 
-  if (apiData) {
+  if (!apiData.weakness && apiData) {
     if (isBatter) {
       const batting = apiData.batting || {};
       const dismissedBy = batting.dismissed_by || batting.dismissedBy || {};
@@ -257,7 +257,7 @@ export function PlayerExplorer() {
 
     setIsLoadingLive(true);
     try {
-      const res = await fetch(getApiUrl(`/player/${encodeURIComponent(playerItem.name)}`));
+      const res = await fetch(getApiUrl(`/player/${encodeURIComponent(playerItem.name)}?role=${playerItem.role}`));
       if (res.ok) {
         const data = await res.json();
         if (data.name) {
@@ -281,7 +281,7 @@ export function PlayerExplorer() {
     setLiveStats(null);
     setIsLoadingLive(true);
     
-    fetch(getApiUrl(`/player/${encodeURIComponent(selected.name)}`))
+    fetch(getApiUrl(`/player/${encodeURIComponent(selected.name)}?role=${selected.role}`))
       .then(res => {
         if (!res.ok) throw new Error("Not found");
         return res.json();

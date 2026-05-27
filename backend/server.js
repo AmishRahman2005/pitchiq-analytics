@@ -96,6 +96,117 @@ app.get('/search', (req, res) => {
     res.json(matches.slice(0, 10));
 });
 
+// Data-driven AI analytical engine to generate tailored weaknesses and strengths
+function generatePlayerAIAnalysis(playerData, isBatter) {
+    if (!playerData) {
+        return {
+            weakness: isBatter ? "Variable bounce & lateral seam movement" : "Flat wickets & heavy boundary hitters",
+            strength: isBatter ? "Lofted cover drive over the infield" : "Disciplined length bowler"
+        };
+    }
+
+    if (isBatter) {
+        const avg = playerData.dismissals > 0 ? (playerData.runs / playerData.dismissals) : playerData.runs;
+        const sr = playerData.balls > 0 ? (playerData.runs / playerData.balls * 100) : 0;
+        
+        // Find top bowler who dismissed them
+        let worstBowler = "None";
+        let maxDismissals = 0;
+        if (playerData.dismissedBy && Object.keys(playerData.dismissedBy).length > 0) {
+            const sorted = Object.entries(playerData.dismissedBy).sort((a, b) => b[1] - a[1]);
+            worstBowler = sorted[0][0];
+            maxDismissals = sorted[0][1];
+        }
+        
+        // Count spin vs pace outs
+        const spinners = ["rashid", "ashwin", "jadeja", "chahal", "lyon", "narine", "maharaj", "shakib", "tahir", "ali", "santner", "sodhi", "hasaranga", "zampa", "kuldeep", "yuzvendra", "muralitharan", "warne", "kumble", "ajmal", "sharma", "axar", "trent", "boult"];
+        let fastOuts = 0;
+        let spinOuts = 0;
+        if (playerData.dismissedBy) {
+            Object.entries(playerData.dismissedBy).forEach(([bowler, count]) => {
+                const bLower = bowler.toLowerCase();
+                if (spinners.some(s => bLower.includes(s))) {
+                    spinOuts += count;
+                } else {
+                    fastOuts += count;
+                }
+            });
+        }
+        
+        // Build dynamic weakness
+        let weakness = "";
+        if (maxDismissals > 0) {
+            if (spinOuts > fastOuts) {
+                weakness = `Slow left-arm/wrist-spin. Struggles against drift, flight, and sharp turn. Modeled threat: ${worstBowler} (dismissed them ${maxDismissals} times in live matchups).`;
+            } else {
+                weakness = `High-velocity seam & swing corridor outside 4th/5th stump line. Susceptible to early-wicket risk when ball is moving. Modeled threat: ${worstBowler} (dismissed them ${maxDismissals} times).`;
+            }
+        } else {
+            if (avg < 25) {
+                weakness = "Heavy swing & lateral seam movement corridor of uncertainty. High early-wicket risk before getting eyes set in.";
+            } else if (sr < 110) {
+                weakness = "Slow pacing and conservative strike rotation in middle overs. Vulnerable to defensive containing lines and spin squeeze traps.";
+            } else {
+                weakness = "Vulnerable to high-velocity short-pitched deliveries targeting the ribs and wide off-stump changes-of-pace.";
+            }
+        }
+        
+        // Build dynamic strength
+        let strength = "";
+        if (avg >= 40 && sr >= 130) {
+            strength = `Elite multi-format accumulator. Dominates cover drives and flick shots; exceptionally fast wrist work enables range-hitting inside the V.`;
+        } else if (avg >= 35) {
+            strength = `Technically sound anchor. Possesses exceptional backfoot control, superb leave judgment in the corridor of uncertainty, and dominant pull shots.`;
+        } else if (sr >= 125) {
+            strength = `High-velocity accelerator and boundary specialist. Dominates powerplays and death overs with innovative ramp and sweep shots.`;
+        } else {
+            strength = `Disciplined batsman showing strong straight drive mechanics and high scoring conversion rates against overpitched deliveries.`;
+        }
+        
+        return { weakness, strength };
+    } else {
+        const economy = playerData.balls > 0 ? ((playerData.runsConceded / playerData.balls) * 6) : 0;
+        const wickets = playerData.wickets;
+        const avg = wickets > 0 ? (playerData.runsConceded / wickets) : 0;
+        const sr = wickets > 0 ? (playerData.balls / wickets) : 24;
+        
+        // Find favorite target
+        let favoriteTarget = "None";
+        let maxWickets = 0;
+        if (playerData.wicketsList && Object.keys(playerData.wicketsList).length > 0) {
+            const sorted = Object.entries(playerData.wicketsList).sort((a, b) => b[1] - a[1]);
+            favoriteTarget = sorted[0][0];
+            maxWickets = sorted[0][1];
+        }
+        
+        // Build dynamic weakness
+        let weakness = "";
+        if (economy > 8.5) {
+            weakness = `Struggles to contain runs when batsmen target deep boundaries on flat batting tracks. Vulnerable to aggressive power-hitters under pressure.`;
+        } else if (sr > 30) {
+            weakness = `Lacks lethal, wicket-taking deliveries on placid pitches; relies on defensive containing lines that batsman can comfortably navigate.`;
+        } else if (favoriteTarget !== "None") {
+            weakness = `Occasionally vulnerable to aggressive counter-attacks by left-handed batsmen who disrupt line and length adjustments.`;
+        } else {
+            weakness = `Flat batting tracks and heavy boundary hitters. Performance drops when pitch offers zero lateral movement or seam bounce.`;
+        }
+        
+        // Build dynamic strength
+        let strength = "";
+        if (economy < 6.5 && sr < 20) {
+            strength = `Elite strike bowler. Combines lethal wicket-taking deliveries (sharp leg-cutters/outswingers) with exceptional run containment.`;
+        } else if (economy < 7.2) {
+            strength = `Superb defensive containment bowler. Exceptional accuracy targeting the blockhole and wide-stump channels under pressure.`;
+        } else if (sr < 22) {
+            strength = `Aggressive wicket-taker. Exceptional bounce and lateral movement; excels at forcing top-order errors and breaking partnerships.`;
+        } else {
+            strength = `Disciplined length bowler. Extremely reliable line and length, creating pressure through dot-ball consistency.`;
+        }
+        
+        return { weakness, strength };
+    }
+}
+
 // Head-to-head matchup analysis split by T20, ODI, and Test
 app.get('/matchup', (req, res) => {
     const batterName = req.query.batter || '';
@@ -182,8 +293,37 @@ app.get('/matchup', (req, res) => {
             ]
         };
         
-        const weakness = weaknessTypes[format][seed % 3];
-        const strength = strengthTypes[format][seed % 3];
+        let weakness = "";
+        let strength = "";
+        
+        if (matchData.balls > 0) {
+            const matchSr = parseFloat(((matchData.runs / matchData.balls) * 100).toFixed(1));
+            const matchWickets = matchData.wickets;
+            
+            if (matchWickets > 0) {
+                weakness = `Exploited by ${actualBowler}'s lines; dismissed ${matchWickets} time(s) with ${matchData.balls} balls faced.`;
+                strength = `Scored ${matchData.runs} runs off ${actualBowler}, but struggled to maintain safety against target deliveries.`;
+            } else if (matchSr > 140) {
+                weakness = `Failed to contain batsman's aggressive strike rate of ${matchSr}. Struggles to find a dot-ball line.`;
+                strength = `Dominates this duel with a high strike rate of ${matchSr}, scoring ${matchData.runs} runs without being dismissed.`;
+            } else if (matchData.balls > 18) {
+                weakness = `Dot-ball pressure buildup. Bowler contains batsman successfully with disciplined containment lines.`;
+                strength = `Accumulates steady runs (${matchData.runs} runs off ${matchData.balls} balls), low risk but conservative pacing.`;
+            } else {
+                weakness = weaknessTypes[format][seed % 3];
+                strength = strengthTypes[format][seed % 3];
+            }
+        } else {
+            // No direct matchups: use player profiles to project duels!
+            const bProfile = batters.get(bKey) || {};
+            const bwProfile = bowlers.get(bwKey) || {};
+            
+            const bAI = generatePlayerAIAnalysis(bProfile, true);
+            const bwAI = generatePlayerAIAnalysis(bwProfile, false);
+            
+            weakness = `No direct face-off. Model projects: ${bAI.weakness.split('.')[0]}.`;
+            strength = `Model projects: ${bwAI.strength.split('.')[0]}.`;
+        }
         
         responseData[format] = {
             runs: matchData.runs,
@@ -239,7 +379,14 @@ app.get('/player/:name', (req, res) => {
     }
     
     const actualName = bData ? bData.name : bwData.name;
-    const isBatter = bData && (!bwData || bData.balls >= bwData.balls);
+    let isBatter = bData && (!bwData || bData.balls >= bwData.balls);
+    if (req.query.role) {
+        if (req.query.role === 'BAT' && bData) {
+            isBatter = true;
+        } else if (req.query.role === 'BOWL' && bwData) {
+            isBatter = false;
+        }
+    }
     
     const batting = bData ? {
         runs: bData.runs,
@@ -343,11 +490,16 @@ app.get('/player/:name', (req, res) => {
         }
     } : {};
     
+    const pProfile = isBatter ? bData : bwData;
+    const aiAnalysis = generatePlayerAIAnalysis(pProfile, isBatter);
+    
     res.json({
         name: actualName,
         role: isBatter ? "BAT" : "BOWL",
         batting,
-        bowling
+        bowling,
+        weakness: aiAnalysis.weakness,
+        strength: aiAnalysis.strength
     });
 });
 
