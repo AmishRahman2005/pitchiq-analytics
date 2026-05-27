@@ -150,6 +150,49 @@ def generate_player_ai_analysis(bat_stats, bowl_stats, is_batter):
             
         return {"weakness": weakness, "strength": strength}
 
+def generate_player_fun_fact(bat_stats, bowl_stats, is_batter):
+    if is_batter:
+        if not bat_stats:
+            return "Did you know? This player has indexed extensive career stats in our live database."
+        runs = bat_stats.get("runs", 0)
+        balls = bat_stats.get("balls_faced", 0)
+        dismissals = bat_stats.get("dismissals", 0)
+        avg = runs / dismissals if dismissals > 0 else runs
+        sr = (runs / balls * 100) if balls > 0 else 0
+        
+        runs_by_over = bat_stats.get("runs_by_over", {})
+        if runs_by_over:
+            sorted_overs = sorted(runs_by_over.items(), key=lambda x: x[1], reverse=True)
+            if sorted_overs and sorted_overs[0][1] > 100:
+                return f"Did you know? Over #{sorted_overs[0][0]} is this batsman's absolute favorite, yielding a total of {sorted_overs[0][1]:,} runs in our database!"
+        
+        if sr > 140:
+            return f"Did you know? This batsman scores at a blistering career strike rate of {sr:.1f}, making them a certified bowler's nightmare in short formats."
+        
+        return f"Did you know? This batsman has faced a total of {balls:,} balls in our live database, accumulating {runs:,} career runs."
+    else:
+        if not bowl_stats:
+            return "Did you know? This player has indexed extensive career stats in our live database."
+        economy = bowl_stats.get("economy", 0)
+        wickets = bowl_stats.get("wickets", 0)
+        balls = bowl_stats.get("balls_bowled", 0)
+        sr = balls / wickets if wickets > 0 else 24
+        
+        wickets_list = bowl_stats.get("wickets_list", {})
+        if wickets_list:
+            sorted_victims = sorted(wickets_list.items(), key=lambda x: x[1], reverse=True)
+            if sorted_victims and sorted_victims[0][1] > 3:
+                return f"Did you know? This bowler's favorite target is {sorted_victims[0][0]}, dismissing them a staggering {sorted_victims[0][1]} times in our database!"
+        
+        if economy > 0 and economy < 6.5:
+            return f"Did you know? This bowler boasts an exceptional economy rate of {economy:.2f} runs per over, making them one of the hardest bowlers to score against in cricket history."
+        
+        if sr > 0 and sr < 20:
+            return f"Did you know? This bowler takes a wicket every {sr:.1f} balls on average, indicating a highly lethal and aggressive wicket-taking style."
+            
+        runs_conceded = bowl_stats.get("runs_conceded", 0)
+        return f"Did you know? This bowler has delivered a staggering {balls:,} balls in our database, conceding {runs_conceded:,} runs and taking {wickets} wickets."
+
 @app.get("/player/{name}")
 def get_player_stats(name: str, role: str = None):
     name_lower = name.lower()
@@ -236,6 +279,7 @@ def get_player_stats(name: str, role: str = None):
         elif role == 'BOWL' and len(bowl_df) > 0:
             is_batter = False
     ai_analysis = generate_player_ai_analysis(bat_stats, bowl_stats, is_batter)
+    fun_fact = generate_player_fun_fact(bat_stats, bowl_stats, is_batter)
     
     return {
         "name": actual_name,
@@ -243,5 +287,6 @@ def get_player_stats(name: str, role: str = None):
         "batting": bat_stats,
         "bowling": bowl_stats,
         "weakness": ai_analysis["weakness"],
-        "strength": ai_analysis["strength"]
+        "strength": ai_analysis["strength"],
+        "funFact": fun_fact
     }

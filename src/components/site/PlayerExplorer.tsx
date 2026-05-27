@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Target, TrendingUp, Activity, Crosshair, User2, Database, AlertCircle } from "lucide-react";
+import { Search, Target, TrendingUp, Activity, Crosshair, User2, Database, AlertCircle, Sparkles } from "lucide-react";
 import { getApiUrl } from "@/lib/api";
 
 type Role = "BAT" | "BOWL";
@@ -23,6 +23,7 @@ type Player = {
   style: string;
   stats: { label: string; value: string }[];
   weakness: string;
+  funFact: string;
   dismissals: Dismissal[];
 };
 
@@ -186,6 +187,7 @@ const createDynamicPlayer = (apiData: any): Player => {
     style: isBatter ? "RHB/LHB · Batter" : "RA/LA · Bowler",
     stats: stats,
     weakness: weakness,
+    funFact: apiData.funFact || "Did you know? This player has indexed extensive career stats in our live database.",
     dismissals: dismissals.slice(0, 120)
   };
 };
@@ -665,6 +667,12 @@ export function PlayerExplorer() {
                 );
               })()}
 
+              <div className="rounded-3xl glass-strong p-4 shadow-card">
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  <Sparkles size={11} className="text-amber-400" /> Fun fact
+                </div>
+                <p className="mt-2 text-xs font-medium text-foreground leading-relaxed">{selected.funFact}</p>
+              </div>
             </div>
           </motion.div>
           ) : (

@@ -33,9 +33,13 @@ export function Navbar() {
     >
       <div className="mx-auto max-w-7xl px-4">
         <div
-          className={`flex items-center justify-between rounded-2xl px-4 py-2.5 transition-all ${
-            scrolled ? "glass-strong shadow-card" : "bg-transparent"
-          }`}
+          className="flex items-center justify-between rounded-2xl px-4 py-2.5 transition-all glass-strong shadow-card"
+          style={{
+            background: "linear-gradient(180deg, rgba(21, 21, 21, 0.75), rgba(15, 15, 15, 0.45))",
+            backdropFilter: "blur(20px) saturate(150%)",
+            WebkitBackdropFilter: "blur(20px) saturate(150%)",
+            border: "1px solid rgba(255, 255, 255, 0.08)"
+          }}
         >
           <Link to="/" className="group flex items-center gap-2.5">
             <span className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent shadow-glow-cyan">

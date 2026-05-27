@@ -207,6 +207,66 @@ function generatePlayerAIAnalysis(playerData, isBatter) {
     }
 }
 
+// Data-driven AI analytical engine to generate tailored fun facts for players
+function generatePlayerFunFact(playerData, isBatter) {
+    if (!playerData) {
+        return "Did you know? This player has indexed extensive career stats in our live database.";
+    }
+
+    if (isBatter) {
+        const runs = playerData.runs || 0;
+        const balls = playerData.balls || 0;
+        const avg = playerData.dismissals > 0 ? (playerData.runs / playerData.dismissals) : playerData.runs;
+        const sr = playerData.balls > 0 ? (playerData.runs / playerData.balls * 100) : 0;
+        
+        if (playerData.doubleHundreds > 0) {
+            return `Did you know? This batsman has registered ${playerData.doubleHundreds} double centuries in our database, displaying a supreme appetite for marathon innings.`;
+        }
+        if (playerData.hundreds > 10) {
+            return `Did you know? This batsman has registered ${playerData.hundreds} centuries in our database, making them one of the premier match-winners of their generation.`;
+        }
+        if (playerData.ducks > 12) {
+            return `Did you know? Despite their legendary batting records, this player has registered ${playerData.ducks} career ducks, proving even cricket icons face early vulnerability!`;
+        }
+        if (sr > 140) {
+            return `Did you know? This batsman scores at a blistering career strike rate of ${sr.toFixed(1)}, making them a certified bowler's nightmare in short-form cricket.`;
+        }
+        
+        // Find most productive over
+        if (playerData.runsByOver && Object.keys(playerData.runsByOver).length > 0) {
+            const sortedOvers = Object.entries(playerData.runsByOver).sort((a, b) => b[1] - a[1]);
+            if (sortedOvers[0][1] > 100) {
+                return `Did you know? Over #${sortedOvers[0][0]} is this batsman's absolute favorite, yielding a total of ${sortedOvers[0][1].toLocaleString()} runs in our database!`;
+            }
+        }
+        
+        return `Did you know? This batsman has faced a total of ${balls.toLocaleString()} balls in our live database, accumulating ${runs.toLocaleString()} career runs.`;
+    } else {
+        const economy = playerData.balls > 0 ? ((playerData.runsConceded / playerData.balls) * 6) : 0;
+        const wickets = playerData.wickets || 0;
+        const balls = playerData.balls || 0;
+        const sr = wickets > 0 ? (playerData.balls / wickets) : 24;
+        
+        if (playerData.fiveWickets > 0) {
+            return `Did you know? This bowler has registered ${playerData.fiveWickets} five-wicket hauls in our database, proving their ability to single-handedly dismantle batting lineups.`;
+        }
+        if (playerData.wicketsList && Object.keys(playerData.wicketsList).length > 0) {
+            const sortedVictims = Object.entries(playerData.wicketsList).sort((a, b) => b[1] - a[1]);
+            if (sortedVictims[0][1] > 3) {
+                return `Did you know? This bowler's favorite target is ${sortedVictims[0][0]}, dismissing them a staggering ${sortedVictims[0][1]} times in our database!`;
+            }
+        }
+        if (economy > 0 && economy < 6.5) {
+            return `Did you know? This bowler boasts an exceptional economy rate of ${economy.toFixed(2)} runs per over, making them one of the hardest bowlers to score against in cricket history.`;
+        }
+        if (sr > 0 && sr < 20) {
+            return `Did you know? This bowler takes a wicket every ${sr.toFixed(1)} balls on average, indicating a highly lethal and aggressive wicket-taking style.`;
+        }
+        
+        return `Did you know? This bowler has delivered a staggering ${balls.toLocaleString()} balls in our database, conceding ${playerData.runsConceded?.toLocaleString() || 0} runs and taking ${wickets} wickets.`;
+    }
+}
+
 // Head-to-head matchup analysis split by T20, ODI, and Test
 app.get('/matchup', (req, res) => {
     const batterName = req.query.batter || '';
@@ -492,6 +552,7 @@ app.get('/player/:name', (req, res) => {
     
     const pProfile = isBatter ? bData : bwData;
     const aiAnalysis = generatePlayerAIAnalysis(pProfile, isBatter);
+    const funFact = generatePlayerFunFact(pProfile, isBatter);
     
     res.json({
         name: actualName,
@@ -499,7 +560,8 @@ app.get('/player/:name', (req, res) => {
         batting,
         bowling,
         weakness: aiAnalysis.weakness,
-        strength: aiAnalysis.strength
+        strength: aiAnalysis.strength,
+        funFact: funFact
     });
 });
 
