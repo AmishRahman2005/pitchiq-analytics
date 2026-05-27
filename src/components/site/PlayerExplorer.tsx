@@ -154,7 +154,7 @@ export function PlayerExplorer() {
       // Default popular featured list of players populated from the live DB
       const defaults = [
         { name: "V Kohli", role: "BAT", details: "LIVE DATABASE · BATTER · 37,087 RUNS" },
-        { name: "B Stokes", role: "BAT", details: "LIVE DATABASE · BATTER · 12,431 RUNS" },
+        { name: "BA Stokes", role: "BAT", details: "LIVE DATABASE · BATTER · 12,431 RUNS" },
         { name: "Babar Azam", role: "BAT", details: "LIVE DATABASE · BATTER · 14,882 RUNS" },
         { name: "JE Root", role: "BAT", details: "LIVE DATABASE · BATTER · 19,411 RUNS" },
         { name: "JJ Bumrah", role: "BOWL", details: "LIVE DATABASE · BOWLER · 741 WICKETS" },
