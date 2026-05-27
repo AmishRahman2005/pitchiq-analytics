@@ -9,253 +9,58 @@ const port = 8000;
 app.use(cors());
 app.use(express.json());
 
-let csvPath = 'data/all_deliveries.csv';
-if (!fs.existsSync(csvPath)) {
-    csvPath = 'all_deliveries.csv';
+const battersPath = 'data/batters.json';
+const bowlersPath = 'data/bowlers.json';
+const matchupsPath = 'data/matchups.json';
+
+let battersFile = battersPath;
+let bowlersFile = bowlersPath;
+let matchupsFile = matchupsPath;
+
+if (!fs.existsSync(battersFile)) {
+    battersFile = 'backend/data/batters.json';
+    bowlersFile = 'backend/data/bowlers.json';
+    matchupsFile = 'backend/data/matchups.json';
 }
 
-console.log(`Loading database (CSV) from ${csvPath}... this might take a moment.`);
-
-if (!fs.existsSync(csvPath)) {
-    console.error(`ERROR: Database not found at data/all_deliveries.csv or all_deliveries.csv. Please run extraction first.`);
-    process.exit(1);
-}
-
-// Memory indexes for instant player and matchup lookups!
+// Memory indexes for player and matchup lookups
 const batters = new Map();
 const bowlers = new Map();
 const matchupsIndex = new Map();
 let totalRecords = 0;
 
 const loadData = () => {
-    return new Promise(async (resolve) => {
-        console.log("Analyzing match formats (Pass 1)...");
-        const matchCounts = new Map();
+    return new Promise((resolve) => {
+        console.log("Loading pre-aggregated databases from JSON...");
         
-        // Pass 1: Count deliveries per match to classify formats
-        const fileStream1 = fs.createReadStream(csvPath);
-        const rl1 = readline.createInterface({
-            input: fileStream1,
-            crlfDelay: Infinity
-        });
-
-        let isHeader1 = true;
-        for await (const line of rl1) {
-            if (isHeader1) {
-                isHeader1 = false;
-                continue;
-            }
-            const parts = line.split(',');
-            if (parts.length < 9) continue;
-            const matchId = parts[0];
-            matchCounts.set(matchId, (matchCounts.get(matchId) || 0) + 1);
+        if (!fs.existsSync(battersFile) || !fs.existsSync(bowlersFile) || !fs.existsSync(matchupsFile)) {
+            console.error("ERROR: Pre-aggregated JSON databases not found! Please run extraction first.");
+            process.exit(1);
         }
-        console.log(`Analyzed ${matchCounts.size} total matches.`);
-
-        // Pass 2: Load and index everything
-        console.log("Indexing delivery records by format (Pass 2)...");
-        const fileStream2 = fs.createReadStream(csvPath);
-        const rl2 = readline.createInterface({
-            input: fileStream2,
-            crlfDelay: Infinity
-        });
-
-        const batterMatchRuns = new Map();
-        const bowlerMatchWickets = new Map();
-
-        let isHeader2 = true;
-        rl2.on('line', (line) => {
-            if (isHeader2) {
-                isHeader2 = false;
-                return;
+        
+        try {
+            const battersData = JSON.parse(fs.readFileSync(battersFile, 'utf8'));
+            const bowlersData = JSON.parse(fs.readFileSync(bowlersFile, 'utf8'));
+            const matchupsData = JSON.parse(fs.readFileSync(matchupsFile, 'utf8'));
+            
+            for (const [k, v] of Object.entries(battersData)) {
+                batters.set(k, v);
+                totalRecords += v.balls;
+            }
+            for (const [k, v] of Object.entries(bowlersData)) {
+                bowlers.set(k, v);
+            }
+            for (const [k, v] of Object.entries(matchupsData)) {
+                matchupsIndex.set(k, v);
             }
             
-            totalRecords++;
-            const parts = line.split(',');
-            if (parts.length < 9) return;
-            
-            const matchId = parts[0];
-            const over = parseInt(parts[1], 10) || 0;
-            const ball = parseInt(parts[2], 10) || 0;
-            const batterName = parts[3].replace(/"/g, ''); // strip quotes
-            const bowlerName = parts[4].replace(/"/g, '');
-            const runs = parseInt(parts[5], 10) || 0;
-            const extras = parseInt(parts[6], 10) || 0;
-            const totalRuns = parseInt(parts[7], 10) || 0;
-            const wicket = parseInt(parts[8], 10) || 0;
-            
-            const batterLower = batterName.toLowerCase();
-            const bowlerLower = bowlerName.toLowerCase();
-
-            // Format heuristic based on total match balls
-            const matchBallCount = matchCounts.get(matchId) || 0;
-            let format = 't20';
-            if (matchBallCount > 660) format = 'test';
-            else if (matchBallCount > 270) format = 'odi';
-
-            // Track batter match runs
-            const bmKey = `${batterLower}|${matchId}`;
-            if (!batterMatchRuns.has(bmKey)) {
-                batterMatchRuns.set(bmKey, { runs: 0, dismissed: 0, format });
-            }
-            const bmData = batterMatchRuns.get(bmKey);
-            bmData.runs += runs;
-            bmData.dismissed += wicket;
-            
-            // Track bowler match wickets
-            const bwMatchKey = `${bowlerLower}|${matchId}`;
-            if (!bowlerMatchWickets.has(bwMatchKey)) {
-                bowlerMatchWickets.set(bwMatchKey, { wickets: 0, format });
-            }
-            const bwmData = bowlerMatchWickets.get(bwMatchKey);
-            bwmData.wickets += wicket;
-
-            // 1. Batter index
-            if (!batters.has(batterLower)) {
-                batters.set(batterLower, {
-                    name: batterName,
-                    runs: 0,
-                    balls: 0,
-                    dismissals: 0,
-                    bowlersFaced: {},
-                    dismissedBy: {},
-                    runsByOver: {},
-                    ducks: 0,
-                    fifties: 0,
-                    hundreds: 0,
-                    doubleHundreds: 0,
-                    formats: {
-                        t20: { runs: 0, balls: 0, dismissals: 0, ducks: 0, fifties: 0, hundreds: 0, doubleHundreds: 0 },
-                        odi: { runs: 0, balls: 0, dismissals: 0, ducks: 0, fifties: 0, hundreds: 0, doubleHundreds: 0 },
-                        test: { runs: 0, balls: 0, dismissals: 0, ducks: 0, fifties: 0, hundreds: 0, doubleHundreds: 0 }
-                    }
-                });
-            }
-            const bData = batters.get(batterLower);
-            bData.runs += runs;
-            bData.balls += 1;
-            bData.dismissals += wicket;
-            bData.bowlersFaced[bowlerName] = (bData.bowlersFaced[bowlerName] || 0) + 1;
-            if (wicket === 1) {
-                bData.dismissedBy[bowlerName] = (bData.dismissedBy[bowlerName] || 0) + 1;
-            }
-            bData.runsByOver[over] = (bData.runsByOver[over] || 0) + runs;
-            if (bData.formats[format]) {
-                bData.formats[format].runs += runs;
-                bData.formats[format].balls += 1;
-                bData.formats[format].dismissals += wicket;
-            }
-
-            // 2. Bowler index
-            if (!bowlers.has(bowlerLower)) {
-                bowlers.set(bowlerLower, {
-                    name: bowlerName,
-                    wickets: 0,
-                    balls: 0,
-                    runsConceded: 0,
-                    battersFaced: {},
-                    wicketsList: {},
-                    threeWickets: 0,
-                    fourWickets: 0,
-                    fiveWickets: 0,
-                    formats: {
-                        t20: { wickets: 0, balls: 0, runsConceded: 0, threeWickets: 0, fourWickets: 0, fiveWickets: 0 },
-                        odi: { wickets: 0, balls: 0, runsConceded: 0, threeWickets: 0, fourWickets: 0, fiveWickets: 0 },
-                        test: { wickets: 0, balls: 0, runsConceded: 0, threeWickets: 0, fourWickets: 0, fiveWickets: 0 }
-                    }
-                });
-            }
-            const bwData = bowlers.get(bowlerLower);
-            bwData.wickets += wicket;
-            bwData.balls += 1;
-            bwData.runsConceded += totalRuns;
-            bwData.battersFaced[batterName] = (bwData.battersFaced[batterName] || 0) + 1;
-            if (wicket === 1) {
-                bwData.wicketsList[batterName] = (bwData.wicketsList[batterName] || 0) + 1;
-            }
-            if (bwData.formats[format]) {
-                bwData.formats[format].wickets += wicket;
-                bwData.formats[format].balls += 1;
-                bwData.formats[format].runsConceded += totalRuns;
-            }
-
-            // 3. Matchup index (head-to-head by format)
-            const pairKey = `${batterLower}|${bowlerLower}|${format}`;
-            if (!matchupsIndex.has(pairKey)) {
-                matchupsIndex.set(pairKey, {
-                    runs: 0,
-                    balls: 0,
-                    wickets: 0
-                });
-            }
-            const matchData = matchupsIndex.get(pairKey);
-            matchData.runs += runs;
-            matchData.balls += 1;
-            matchData.wickets += wicket;
-        });
-
-        rl2.on('close', () => {
-            console.log("Aggregating batsman and bowler match milestones...");
-            
-            // Batter milestones
-            for (const [key, data] of batterMatchRuns.entries()) {
-                const [batterLower, matchId] = key.split('|');
-                const bData = batters.get(batterLower);
-                if (!bData) continue;
-                
-                const r = data.runs;
-                const out = data.dismissed > 0;
-                const fmt = data.format;
-                
-                let isDuck = r === 0 && out;
-                let isFifty = r >= 50 && r < 100;
-                let isHundred = r >= 100 && r < 200;
-                let isDoubleHundred = r >= 200;
-                
-                if (isDuck) {
-                    bData.ducks++;
-                    if (bData.formats[fmt]) bData.formats[fmt].ducks++;
-                } else if (isFifty) {
-                    bData.fifties++;
-                    if (bData.formats[fmt]) bData.formats[fmt].fifties++;
-                } else if (isHundred) {
-                    bData.hundreds++;
-                    if (bData.formats[fmt]) bData.formats[fmt].hundreds++;
-                } else if (isDoubleHundred) {
-                    bData.doubleHundreds++;
-                    if (bData.formats[fmt]) bData.formats[fmt].doubleHundreds++;
-                }
-            }
-            
-            // Bowler milestones
-            for (const [key, data] of bowlerMatchWickets.entries()) {
-                const [bowlerLower, matchId] = key.split('|');
-                const bwData = bowlers.get(bowlerLower);
-                if (!bwData) continue;
-                
-                const w = data.wickets;
-                const fmt = data.format;
-                
-                let isThree = w === 3;
-                let isFour = w === 4;
-                let isFive = w >= 5;
-                
-                if (isThree) {
-                    bwData.threeWickets++;
-                    if (bwData.formats[fmt]) bwData.formats[fmt].threeWickets++;
-                } else if (isFour) {
-                    bwData.fourWickets++;
-                    if (bwData.formats[fmt]) bwData.formats[fmt].fourWickets++;
-                } else if (isFive) {
-                    bwData.fiveWickets++;
-                    if (bwData.formats[fmt]) bwData.formats[fmt].fiveWickets++;
-                }
-            }
-
-            console.log(`Database loaded successfully! Total records: ${totalRecords}`);
-            console.log(`Indexed ${batters.size} batters, ${bowlers.size} bowlers, and ${matchupsIndex.size} face-offs across formats.`);
+            console.log("Database loaded successfully!");
+            console.log(`Indexed ${batters.size} batters, ${bowlers.size} bowlers, and ${matchupsIndex.size} face-offs.`);
             resolve();
-        });
+        } catch (err) {
+            console.error("CRITICAL ERROR loading pre-aggregated databases: ", err);
+            process.exit(1);
+        }
     });
 };
 
