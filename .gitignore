@@ -33,5 +33,4 @@ dist-ssr
 
 # Heavy databases and archives
 *.csv
-*.zip
 backend/data/
