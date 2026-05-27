@@ -209,7 +209,20 @@ with open(data_dir / "batters.json", "w", encoding="utf-8") as f:
 with open(data_dir / "bowlers.json", "w", encoding="utf-8") as f:
     json.dump(bowlers, f)
     
-with open(data_dir / "matchups.json", "w", encoding="utf-8") as f:
-    json.dump(matchups, f)
+# Partition matchups by the first letter of the batter's lowercase name
+matchups_partitions = {}
+for pair_key, stats in matchups.items():
+    batter_lower = pair_key.split('|')[0]
+    first_char = batter_lower[0] if batter_lower else ''
+    letter = first_char if first_char.isalpha() and first_char.islower() else 'other'
+    
+    if letter not in matchups_partitions:
+        matchups_partitions[letter] = {}
+    matchups_partitions[letter][pair_key] = stats
+
+print("Saving matchup partitions...")
+for letter, partition in matchups_partitions.items():
+    with open(data_dir / f"matchups_{letter}.json", "w", encoding="utf-8") as f:
+        json.dump(partition, f)
     
 print("AGGREGATION DONE! Databases created successfully!")

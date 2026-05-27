@@ -237,6 +237,23 @@ if (!fs.existsSync(dataDir)) {
 
 fs.writeFileSync(path.join(dataDir, "batters.json"), JSON.stringify(batters), "utf8");
 fs.writeFileSync(path.join(dataDir, "bowlers.json"), JSON.stringify(bowlers), "utf8");
-fs.writeFileSync(path.join(dataDir, "matchups.json"), JSON.stringify(matchups), "utf8");
+
+// Partition matchups by the first letter of the batter's lowercase name
+const matchupsPartitions = {};
+for (const [pairKey, stats] of Object.entries(matchups)) {
+    const batterLower = pairKey.split('|')[0];
+    const firstChar = batterLower[0] || '';
+    const letter = /^[a-z]$/.test(firstChar) ? firstChar : 'other';
+    
+    if (!matchupsPartitions[letter]) {
+        matchupsPartitions[letter] = {};
+    }
+    matchupsPartitions[letter][pairKey] = stats;
+}
+
+console.log("Saving matchup partitions...");
+for (const [letter, partition] of Object.entries(matchupsPartitions)) {
+    fs.writeFileSync(path.join(dataDir, `matchups_${letter}.json`), JSON.stringify(partition), "utf8");
+}
 
 console.log("AGGREGATION DONE! Databases created successfully!");

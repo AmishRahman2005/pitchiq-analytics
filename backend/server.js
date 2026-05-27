@@ -11,29 +11,25 @@ app.use(express.json());
 
 const battersPath = 'data/batters.json';
 const bowlersPath = 'data/bowlers.json';
-const matchupsPath = 'data/matchups.json';
 
 let battersFile = battersPath;
 let bowlersFile = bowlersPath;
-let matchupsFile = matchupsPath;
 
 if (!fs.existsSync(battersFile)) {
     battersFile = 'backend/data/batters.json';
     bowlersFile = 'backend/data/bowlers.json';
-    matchupsFile = 'backend/data/matchups.json';
 }
 
 // Memory indexes for player and matchup lookups
 const batters = new Map();
 const bowlers = new Map();
-const matchupsIndex = new Map();
 let totalRecords = 0;
 
 const loadData = () => {
     return new Promise((resolve) => {
         console.log("Loading pre-aggregated databases from JSON...");
         
-        if (!fs.existsSync(battersFile) || !fs.existsSync(bowlersFile) || !fs.existsSync(matchupsFile)) {
+        if (!fs.existsSync(battersFile) || !fs.existsSync(bowlersFile)) {
             console.error("ERROR: Pre-aggregated JSON databases not found! Please run extraction first.");
             process.exit(1);
         }
@@ -41,7 +37,6 @@ const loadData = () => {
         try {
             const battersData = JSON.parse(fs.readFileSync(battersFile, 'utf8'));
             const bowlersData = JSON.parse(fs.readFileSync(bowlersFile, 'utf8'));
-            const matchupsData = JSON.parse(fs.readFileSync(matchupsFile, 'utf8'));
             
             for (const [k, v] of Object.entries(battersData)) {
                 batters.set(k, v);
@@ -50,12 +45,9 @@ const loadData = () => {
             for (const [k, v] of Object.entries(bowlersData)) {
                 bowlers.set(k, v);
             }
-            for (const [k, v] of Object.entries(matchupsData)) {
-                matchupsIndex.set(k, v);
-            }
             
             console.log("Database loaded successfully!");
-            console.log(`Indexed ${batters.size} batters, ${bowlers.size} bowlers, and ${matchupsIndex.size} face-offs.`);
+            console.log(`Indexed ${batters.size} batters and ${bowlers.size} bowlers.`);
             resolve();
         } catch (err) {
             console.error("CRITICAL ERROR loading pre-aggregated databases: ", err);
@@ -122,6 +114,22 @@ app.get('/matchup', (req, res) => {
     const actualBatter = batters.get(bKey).name;
     const actualBowler = bowlers.get(bwKey).name;
     
+    // Load matchups partition dynamically to save memory!
+    const letter = /^[a-z]$/.test(bKey[0]) ? bKey[0] : 'other';
+    let matchupsPart = {};
+    let partFile = `data/matchups_${letter}.json`;
+    if (!fs.existsSync(partFile)) {
+        partFile = `backend/data/matchups_${letter}.json`;
+    }
+    
+    if (fs.existsSync(partFile)) {
+        try {
+            matchupsPart = JSON.parse(fs.readFileSync(partFile, 'utf8'));
+        } catch (e) {
+            console.error(`Error loading matchup partition ${partFile}:`, e);
+        }
+    }
+    
     const formats = ['t20', 'odi', 'test'];
     const responseData = {
         batsman: actualBatter,
@@ -130,7 +138,7 @@ app.get('/matchup', (req, res) => {
     
     formats.forEach(format => {
         const pairKey = `${bKey}|${bwKey}|${format}`;
-        const matchData = matchupsIndex.get(pairKey) || { runs: 0, balls: 0, wickets: 0 };
+        const matchData = matchupsPart[pairKey] || { runs: 0, balls: 0, wickets: 0 };
         
         const seed = actualBatter.length + actualBowler.length + format.length;
         const zones = [];
