@@ -5,7 +5,7 @@ import { Mail, Github, Linkedin, Send, CheckCircle, MessageSquare } from "lucide
 import amishPhoto from "./amish.jpg";
 
 // 💡 GET YOUR FREE ACCESS KEY: Go to https://web3forms.com/, enter your email, and paste the key here to receive messages directly in your inbox!
-const WEB3FORMS_ACCESS_KEY = "6335097e-d8c2-4267-919b-0dadffbe31a0";
+const WEB3FORMS_ACCESS_KEY: string = "6335097e-d8c2-4267-919b-0dadffbe31a0";
 
 export const Route = createFileRoute("/about")({
   component: AboutPage,
