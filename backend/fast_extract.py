@@ -1,5 +1,5 @@
 import zipfile
-import orjson
+import json
 import csv
 from pathlib import Path
 
@@ -33,7 +33,7 @@ with zipfile.ZipFile(zip_path, "r") as zf:
             try:
 
                 with zf.open(file) as f:
-                    data = orjson.loads(f.read())
+                    data = json.loads(f.read())
 
                 innings = data.get("innings", [])
 
