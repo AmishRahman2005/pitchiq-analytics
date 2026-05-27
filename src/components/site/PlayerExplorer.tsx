@@ -120,6 +120,64 @@ const createDynamicPlayer = (apiData: any): Player => {
     });
   }
 
+  let weakness = isBatter 
+    ? "Variable bounce & lateral seam movement" 
+    : "Flat wickets & heavy boundary hitters";
+
+  if (apiData) {
+    if (isBatter) {
+      const batting = apiData.batting || {};
+      const dismissedBy = batting.dismissed_by || batting.dismissedBy || {};
+      
+      const spinners = ["rashid", "ashwin", "jadeja", "chahal", "lyon", "narine", "maharaj", "shakib", "tahir", "ali", "santner", "sodhi"];
+      let fastOuts = 0;
+      let spinOuts = 0;
+      let worstBowler = "";
+      let maxDismissals = 0;
+
+      Object.entries(dismissedBy).forEach(([bowler, count]: [string, any]) => {
+        if (count > maxDismissals) {
+          maxDismissals = count;
+          worstBowler = bowler;
+        }
+        const bLower = bowler.toLowerCase();
+        if (spinners.some(s => bLower.includes(s))) {
+          spinOuts += count;
+        } else {
+          fastOuts += count;
+        }
+      });
+
+      if (maxDismissals > 0) {
+        if (spinOuts > fastOuts) {
+          weakness = `Slow left-arm/wrist-spin. Struggles against drift & turn (Dismissed by ${worstBowler} ${maxDismissals} times).`;
+        } else {
+          weakness = `High-velocity seam & swing trap. Vulnerable outside off-stump (Dismissed by ${worstBowler} ${maxDismissals} times).`;
+        }
+      } else {
+        const avg = batting.average || 30;
+        const sr = batting.strike_rate || 120;
+        if (avg < 25) {
+          weakness = "Heavy swing & swing corridor of uncertainty. High early-wicket risk.";
+        } else if (sr < 110) {
+          weakness = "Slow pacing in middle overs. Vulnerable to defensive bowling lines.";
+        }
+      }
+    } else {
+      const bowling = apiData.bowling || {};
+      const economy = bowling.economy || 7.5;
+      const sr = bowling.balls_bowled && bowling.wickets ? bowling.balls_bowled / bowling.wickets : 24;
+      
+      if (economy > 8.5) {
+        weakness = "Flat batting tracks. Struggles to contain runs when batsmen target deep boundaries.";
+      } else if (sr > 30) {
+        weakness = "Defensive bowling lines. Lacks lethal wicket-taking deliveries on placid pitches.";
+      } else {
+        weakness = "Left-handed batsmen counter-attacks. Struggles to adjust lines to left-right combinations.";
+      }
+    }
+  }
+
   return {
     id: apiData.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
     name: apiData.name,
@@ -127,7 +185,7 @@ const createDynamicPlayer = (apiData: any): Player => {
     country: "Live Database",
     style: isBatter ? "RHB/LHB · Batter" : "RA/LA · Bowler",
     stats: stats,
-    weakness: isBatter ? "Variable bounce & lateral seam movement" : "Flat wickets & heavy boundary hitters",
+    weakness: weakness,
     dismissals: dismissals.slice(0, 120)
   };
 };
