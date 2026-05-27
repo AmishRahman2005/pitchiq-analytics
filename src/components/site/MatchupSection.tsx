@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Swords, TrendingUp, AlertTriangle, Crosshair, Search, Database, ShieldAlert, Sparkles } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 type Matchup = {
   batsman: string;
@@ -82,7 +83,7 @@ export function MatchupSection() {
       return;
     }
     const timer = setTimeout(() => {
-      fetch(`http://localhost:8000/search?q=${encodeURIComponent(batQuery)}&role=BAT`)
+      fetch(getApiUrl(`/search?q=${encodeURIComponent(batQuery)}&role=BAT`))
         .then(res => res.json())
         .then(data => setBatSuggestions(data))
         .catch(err => console.error("Error fetching batters autocomplete:", err));
@@ -97,7 +98,7 @@ export function MatchupSection() {
       return;
     }
     const timer = setTimeout(() => {
-      fetch(`http://localhost:8000/search?q=${encodeURIComponent(bowlQuery)}&role=BOWL`)
+      fetch(getApiUrl(`/search?q=${encodeURIComponent(bowlQuery)}&role=BOWL`))
         .then(res => res.json())
         .then(data => setBowlSuggestions(data))
         .catch(err => console.error("Error fetching bowlers autocomplete:", err));
@@ -115,7 +116,7 @@ export function MatchupSection() {
     setSimError("");
     
     try {
-      const res = await fetch(`http://localhost:8000/matchup?batter=${encodeURIComponent(selectedBat)}&bowler=${encodeURIComponent(selectedBowl)}`);
+      const res = await fetch(getApiUrl(`/matchup?batter=${encodeURIComponent(selectedBat)}&bowler=${encodeURIComponent(selectedBowl)}`));
       if (!res.ok) {
         throw new Error("No face-off record found between these two players.");
       }

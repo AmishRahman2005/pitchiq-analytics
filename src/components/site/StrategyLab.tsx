@@ -18,6 +18,7 @@ import {
   BarChart2,
   Check
 } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 const lines = ["Off", "4th", "5th", "Middle", "Leg"] as const;
 const lengths = ["Yorker", "Full", "Good", "Short of good", "Short"] as const;
@@ -99,7 +100,7 @@ export function StrategyLab() {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:8000/search?q=${encodeURIComponent(q)}&role=BAT`);
+      const res = await fetch(getApiUrl(`/search?q=${encodeURIComponent(q)}&role=BAT`));
       if (res.ok) {
         const data = await res.json();
         setSuggestions(data);
@@ -120,7 +121,7 @@ export function StrategyLab() {
     setShowSuggestions(false);
     setPlanApplied(false);
     try {
-      const res = await fetch(`http://localhost:8000/player/${encodeURIComponent(player.name)}`);
+      const res = await fetch(getApiUrl(`/player/${encodeURIComponent(player.name)}`));
       if (res.ok) {
         const data = await res.json();
         setSelectedBatsman(data);

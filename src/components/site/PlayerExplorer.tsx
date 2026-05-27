@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Target, TrendingUp, Activity, Crosshair, User2, Database, AlertCircle } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 type Role = "BAT" | "BOWL";
 
@@ -168,7 +169,7 @@ export function PlayerExplorer() {
 
     setIsSearching(true);
     const timer = setTimeout(() => {
-      fetch(`http://localhost:8000/search?q=${encodeURIComponent(q)}&role=${role}`)
+      fetch(getApiUrl(`/search?q=${encodeURIComponent(q)}&role=${role}`))
         .then(res => res.json())
         .then(data => {
           if (data && data.length > 0) {
@@ -198,7 +199,7 @@ export function PlayerExplorer() {
 
     setIsLoadingLive(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/player/${encodeURIComponent(playerItem.name)}`);
+      const res = await fetch(getApiUrl(`/player/${encodeURIComponent(playerItem.name)}`));
       if (res.ok) {
         const data = await res.json();
         if (data.name) {
@@ -222,7 +223,7 @@ export function PlayerExplorer() {
     setLiveStats(null);
     setIsLoadingLive(true);
     
-    fetch(`http://127.0.0.1:8000/player/${encodeURIComponent(selected.name)}`)
+    fetch(getApiUrl(`/player/${encodeURIComponent(selected.name)}`))
       .then(res => {
         if (!res.ok) throw new Error("Not found");
         return res.json();
