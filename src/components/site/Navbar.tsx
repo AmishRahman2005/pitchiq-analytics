@@ -23,10 +23,7 @@ export function Navbar() {
   }, []);
 
   return (
-    <motion.header
-      initial={{ y: -24, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+    <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled ? "py-2" : "py-4"
       }`}
@@ -100,6 +97,6 @@ export function Navbar() {
           </div>
         )}
       </div>
-    </motion.header>
+    </header>
   );
 }

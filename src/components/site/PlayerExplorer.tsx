@@ -179,6 +179,67 @@ const createDynamicPlayer = (apiData: any): Player => {
     }
   }
 
+  let funFact = apiData.funFact;
+  if (!funFact && apiData) {
+    const name = apiData.name || "";
+    if (isBatter) {
+      const batting = apiData.batting || {};
+      const runs = batting.runs || 0;
+      const avg = batting.average || 35;
+      const sr = batting.strike_rate || 120;
+      const hundreds = batting.hundreds || 0;
+      
+      if (name.includes("de Villiers")) {
+        funFact = `Did you know? AB de Villiers holds the record for the fastest ODI 50 (16 balls), 100 (31 balls), and 150 (64 balls), earning him the moniker "Mr. 360".`;
+      } else if (name.includes("Kohli")) {
+        funFact = `Did you know? Virat Kohli has the most double centuries (7) as a Test captain for India and was the fastest player in history to reach 10,000 ODI runs (205 innings).`;
+      } else if (name.includes("Babar")) {
+        funFact = `Did you know? Babar Azam was the fastest batsman to reach 2,000 runs in T20 Internationals, achieving the milestone in just 52 innings.`;
+      } else if (name.includes("Root")) {
+        funFact = `Did you know? Joe Root became only the second English batsman to cross 10,000 Test runs and holds the record for most Test centuries for England.`;
+      } else if (name.includes("Stokes")) {
+        funFact = `Did you know? Ben Stokes scored the fastest ever Test double-century by an English batsman, off just 163 balls against South Africa in 2016.`;
+      } else if (hundreds > 25) {
+        funFact = `Did you know? ${name} has registered a staggering ${hundreds} career centuries, cementing their place among the all-time cricket elites!`;
+      } else if (runs > 15000) {
+        funFact = `Did you know? ${name} has amassed ${runs.toLocaleString()} runs in our database, showing a marathon appetite for run-scoring.`;
+      } else if (avg > 45) {
+        funFact = `Did you know? ${name} averages a premium ${avg} runs per dismissal, demonstrating extreme technical security and accumulation power.`;
+      } else if (sr > 135) {
+        funFact = `Did you know? With a strike rate of ${sr}, ${name} scores boundaries at a certified rapid clip, making them a bowler's worst nightmare!`;
+      } else {
+        funFact = `Did you know? ${name} has faced a total of ${(batting.balls_faced || 0).toLocaleString()} deliveries in our telemetry database, scoring ${runs.toLocaleString()} runs.`;
+      }
+    } else {
+      const bowling = apiData.bowling || {};
+      const wickets = bowling.wickets || 0;
+      const eco = bowling.economy || 7.5;
+      const avg = bowling.average || 25;
+      
+      if (name.includes("Bumrah")) {
+        funFact = `Did you know? Jasprit Bumrah is famous for his unique, hyper-extended bowling action and holds the record for the most wickets by an Indian bowler in a single calendar year across formats.`;
+      } else if (name.includes("Cummins")) {
+        funFact = `Did you know? Pat Cummins led Australia to a World Test Championship and a World Cup title in 2023, while maintaining his spot as one of the world's most consistent fast bowlers.`;
+      } else if (name.includes("Rabada")) {
+        funFact = `Did you know? Kagiso Rabada became the youngest bowler to take a 10-wicket haul in Test history for South Africa and reached 200 Test wickets in record time.`;
+      } else if (name.includes("Khan")) {
+        funFact = `Did you know? Rashid Khan was the youngest ever player to captain an international cricket team and the fastest bowler to reach 100 wickets in T20Is.`;
+      } else if (wickets > 500) {
+        funFact = `Did you know? ${name} has taken an elite ${wickets} wickets in our database, dismantling top-order lineups with surgical precision!`;
+      } else if (eco > 0 && eco < 6.5) {
+        funFact = `Did you know? ${name} boasts a premium career economy rate of just ${eco} runs per over, choking the run scoring rate in crucial middle overs.`;
+      } else if (avg > 0 && avg < 23) {
+        funFact = `Did you know? ${name} takes wickets at a superb average of just ${avg} runs per wicket, showing an incredibly lethal wicket-taking delivery range.`;
+      } else {
+        funFact = `Did you know? ${name} has delivered over ${((bowling.balls_bowled || 0) / 6).toFixed(0)} overs in our database, capturing ${wickets} wickets.`;
+      }
+    }
+  }
+
+  if (!funFact) {
+    funFact = "Did you know? This player has indexed extensive career stats in our live database.";
+  }
+
   return {
     id: apiData.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
     name: apiData.name,
@@ -187,7 +248,7 @@ const createDynamicPlayer = (apiData: any): Player => {
     style: isBatter ? "RHB/LHB · Batter" : "RA/LA · Bowler",
     stats: stats,
     weakness: weakness,
-    funFact: apiData.funFact || "Did you know? This player has indexed extensive career stats in our live database.",
+    funFact: funFact,
     dismissals: dismissals.slice(0, 120)
   };
 };
