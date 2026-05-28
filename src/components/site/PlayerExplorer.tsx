@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Target, TrendingUp, Activity, Crosshair, User2, Database, AlertCircle, Sparkles } from "lucide-react";
 import { getApiUrl } from "@/lib/api";
+import { getPlayerCountry } from "@/lib/utils";
 
 type Role = "BAT" | "BOWL";
 
@@ -244,7 +245,7 @@ const createDynamicPlayer = (apiData: any): Player => {
     id: apiData.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
     name: apiData.name,
     role: apiData.role,
-    country: "Live Database",
+    country: getPlayerCountry(apiData.name),
     style: isBatter ? "RHB/LHB · Batter" : "RA/LA · Bowler",
     stats: stats,
     weakness: weakness,

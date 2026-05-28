@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Swords, TrendingUp, AlertTriangle, Crosshair, Search, Database, ShieldAlert, Sparkles } from "lucide-react";
 import { getApiUrl } from "@/lib/api";
+import { getPlayerCountry } from "@/lib/utils";
 
 type Matchup = {
   batsman: string;
@@ -70,6 +71,22 @@ export function MatchupSection() {
   const [customMatchups, setCustomMatchups] = useState<Matchup[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [simError, setSimError] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState("All");
+
+  const countries = [
+    "All",
+    "India",
+    "Australia",
+    "England",
+    "Pakistan",
+    "South Africa",
+    "New Zealand",
+    "West Indies",
+    "Sri Lanka",
+    "Bangladesh",
+    "Afghanistan",
+    "Other"
+  ];
 
   const getInitials = (name: string) => {
     if (!name) return "";
@@ -185,7 +202,13 @@ export function MatchupSection() {
     }
   };
 
-  const allMatchups = customMatchups.length > 0 ? customMatchups : defaultMatchups;
+  const baseMatchups = customMatchups.length > 0 ? customMatchups : defaultMatchups;
+  const filteredMatchups = baseMatchups.filter(m => {
+    if (selectedCountry === "All") return true;
+    const batCountry = getPlayerCountry(m.batsman);
+    const bowlCountry = getPlayerCountry(m.bowler);
+    return batCountry === selectedCountry || bowlCountry === selectedCountry;
+  });
 
   return (
     <section className="relative mx-auto mt-32 max-w-7xl px-6">
@@ -336,9 +359,44 @@ export function MatchupSection() {
         )}
       </div>
 
+      {/* Country wise filter */}
+      <div className="mb-8 relative z-20">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+          Filter matchups by player country
+        </div>
+        <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-2 pr-1">
+          {countries.map((country) => {
+            const isSelected = selectedCountry === country;
+            return (
+              <button
+                key={country}
+                onClick={() => setSelectedCountry(country)}
+                className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition-all duration-300 border cursor-pointer ${
+                  isSelected
+                    ? "bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-400 border-emerald-500/40 shadow-glow-cyan/20 scale-105"
+                    : "bg-white/[0.02] border-white/5 text-muted-foreground hover:bg-white/[0.05] hover:text-white hover:border-white/10"
+                }`}
+              >
+                {country}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {filteredMatchups.length === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/[0.01] glass-strong p-12 text-center shadow-card min-h-[220px]">
+          <Swords className="h-10 w-10 text-primary/30 animate-pulse mb-3" />
+          <div className="font-display text-base font-bold">No Matchups Found</div>
+          <div className="text-xs text-muted-foreground mt-1 max-w-[280px]">
+            No tracked matchups contain a player from {selectedCountry}. Try simulating a live matchup at the top!
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-5 md:grid-cols-3">
         <AnimatePresence>
-          {allMatchups.map((m, i) => (
+          {filteredMatchups.map((m, i) => (
             <motion.article
               key={m.batsman + m.bowler + (m.format || '')}
               initial={{ opacity: 0, y: 24, scale: 0.95 }}
@@ -490,7 +548,7 @@ function PlayerChip({ name, role, reverse }: { name: string; role: string; rever
       </div>
       <div className="min-w-0">
         <div className="font-display text-sm font-semibold leading-tight truncate max-w-[100px]">{name}</div>
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">Live Database</div>
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground truncate">{getPlayerCountry(name)}</div>
       </div>
     </div>
   );
