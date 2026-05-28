@@ -262,12 +262,38 @@ export function PlayerExplorer() {
   const [liveStats, setLiveStats] = useState<any>(null);
   const [isLoadingLive, setIsLoadingLive] = useState(false);
   const [formatTab, setFormatTab] = useState<"T20" | "ODI" | "TEST" | "ALL">("T20");
+  const [selectedOppositionCountry, setSelectedOppositionCountry] = useState("All");
   
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const allPlayers = customPlayers;
   const selected = allPlayers.find((p) => p.id === selectedId) ?? allPlayers[0];
+
+  const opponentCountries = [
+    "All",
+    "India",
+    "Australia",
+    "England",
+    "Pakistan",
+    "South Africa",
+    "New Zealand",
+    "West Indies",
+    "Sri Lanka",
+    "Bangladesh",
+    "Afghanistan",
+    "Other"
+  ];
+
+  const filteredDismissals = useMemo(() => {
+    if (!selected) return [];
+    if (selectedOppositionCountry === "All") return selected.dismissals;
+    return selected.dismissals.filter(d => {
+      const opponent = selected.role === "BAT" ? d.bowler : d.batter;
+      if (!opponent) return false;
+      return getPlayerCountry(opponent) === selectedOppositionCountry;
+    });
+  }, [selected, selectedOppositionCountry]);
 
   // Universal real-time live database search
   useEffect(() => {
@@ -485,7 +511,7 @@ export function PlayerExplorer() {
                   <div className="truncate font-display text-lg font-bold">
                     {selected.name}{" "}
                     <span className="text-xs font-normal text-muted-foreground">
-                      · {selected.dismissals.length} tracked
+                      · {filteredDismissals.length} tracked
                     </span>
                   </div>
                 </div>
@@ -494,7 +520,7 @@ export function PlayerExplorer() {
                 </div>
               </div>
 
-              <PitchMap dismissals={selected.dismissals} style={selected.style} />
+              <PitchMap dismissals={filteredDismissals} style={selected.style} />
 
               <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] uppercase tracking-widest text-muted-foreground">
                 {(Object.keys(DISMISSAL_COLOR) as Dismissal["type"][]).map((t) => (
@@ -550,6 +576,19 @@ export function PlayerExplorer() {
                   ? liveStats.bowling 
                   : liveStats.bowling?.formats?.[formatTab.toLowerCase() as "t20" | "odi" | "test"];
 
+                const hasCountryFilter = selectedOppositionCountry !== "All";
+                const countryStats = liveStats.statsByCountry?.[selectedOppositionCountry];
+
+                const batRuns = hasCountryFilter ? (countryStats?.runs ?? 0) : (activeBatStats?.runs ?? 0);
+                const batAvg = hasCountryFilter ? (countryStats?.average ?? "0.0") : (activeBatStats?.average ?? "0");
+                const batSR = hasCountryFilter ? (countryStats?.strike_rate ?? "0.0") : (activeBatStats?.strike_rate ?? "0");
+                const batBalls = hasCountryFilter ? (countryStats?.balls ?? 0) : (activeBatStats?.balls ? activeBatStats.balls : (activeBatStats?.balls_faced ?? 0));
+
+                const bowlWickets = hasCountryFilter ? (countryStats?.wickets ?? 0) : (activeBowlStats?.wickets ?? 0);
+                const bowlEco = hasCountryFilter ? (countryStats?.economy ?? "0.0") : (activeBowlStats?.economy ?? "0");
+                const bowlAvg = hasCountryFilter ? (countryStats?.average ?? "0.0") : (activeBowlStats?.average ?? "0");
+                const bowlOvers = hasCountryFilter ? parseFloat(((countryStats?.balls ?? 0) / 6).toFixed(1)) : (activeBowlStats?.overs ?? (activeBowlStats?.overs_bowled ?? 0));
+
                 return (
                   <div className="rounded-3xl border border-emerald-500/20 bg-emerald-500/[0.03] p-4 shadow-card">
                     <div className="flex items-center justify-between">
@@ -565,22 +604,42 @@ export function PlayerExplorer() {
                       Calculated from 11M+ balls
                     </div>
 
-                    {/* Format Tabs Bar */}
-                    <div className="mt-3 flex gap-1 bg-black/30 p-0.5 rounded-lg border border-white/5">
-                      {(["T20", "ODI", "TEST", "ALL"] as const).map((fmt) => (
-                        <button
-                          key={fmt}
-                          onClick={() => setFormatTab(fmt)}
-                          className={`flex-1 text-[9px] font-bold uppercase tracking-wider py-1 rounded transition-all cursor-pointer ${
-                            formatTab === fmt
-                              ? "bg-emerald-500 text-black font-extrabold shadow-sm"
-                              : "text-muted-foreground hover:text-white"
-                          }`}
-                        >
-                          {fmt}
-                        </button>
-                      ))}
+                    {/* Opposition Country Selector */}
+                    <div className="mt-3 border-b border-white/5 pb-3">
+                      <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-400 mb-1">
+                        Opposition Country
+                      </div>
+                      <select
+                        value={selectedOppositionCountry}
+                        onChange={(e) => setSelectedOppositionCountry(e.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-black/60 py-1.5 px-2 text-[11px] font-bold text-emerald-400 focus:outline-none"
+                      >
+                        {opponentCountries.map((c) => (
+                          <option key={c} value={c} className="bg-[#0b130e] text-white">
+                            {c === "All" ? "All Opponent Countries" : `vs ${c}`}
+                          </option>
+                        ))}
+                      </select>
                     </div>
+
+                    {/* Format Tabs Bar - only visible when country filter is not active */}
+                    {!hasCountryFilter && (
+                      <div className="mt-3 flex gap-1 bg-black/30 p-0.5 rounded-lg border border-white/5">
+                        {(["T20", "ODI", "TEST", "ALL"] as const).map((fmt) => (
+                          <button
+                            key={fmt}
+                            onClick={() => setFormatTab(fmt)}
+                            className={`flex-1 text-[9px] font-bold uppercase tracking-wider py-1 rounded transition-all cursor-pointer ${
+                              formatTab === fmt
+                                ? "bg-emerald-500 text-black font-extrabold shadow-sm"
+                                : "text-muted-foreground hover:text-white"
+                            }`}
+                          >
+                            {fmt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     
                     {liveStats.role === "BAT" ? (
                       <>
@@ -588,59 +647,61 @@ export function PlayerExplorer() {
                           <div className="rounded-xl bg-white/[0.02] p-2.5 ring-1 ring-white/5">
                             <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Runs</div>
                             <div className="font-display text-sm font-bold text-white">
-                              {activeBatStats?.runs ? activeBatStats.runs.toLocaleString() : "0"}
+                              {batRuns.toLocaleString()}
                             </div>
                           </div>
                           <div className="rounded-xl bg-white/[0.02] p-2.5 ring-1 ring-white/5">
                             <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Average</div>
                             <div className="font-display text-sm font-bold text-white">
-                              {activeBatStats?.average ?? "0"}
+                              {batAvg}
                             </div>
                           </div>
                           <div className="rounded-xl bg-white/[0.02] p-2.5 ring-1 ring-white/5">
                             <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Strike Rate</div>
                             <div className="font-display text-sm font-bold text-white">
-                              {activeBatStats?.strike_rate ?? "0"}
+                              {batSR}
                             </div>
                           </div>
                           <div className="rounded-xl bg-white/[0.02] p-2.5 ring-1 ring-white/5">
                             <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Balls Faced</div>
                             <div className="font-display text-sm font-bold text-white">
-                              {activeBatStats?.balls ? activeBatStats.balls.toLocaleString() : (activeBatStats?.balls_faced ? activeBatStats.balls_faced.toLocaleString() : "0")}
+                              {batBalls.toLocaleString()}
                             </div>
                           </div>
                         </div>
 
-                        {/* Milestone Stats Grid */}
-                        <div className="mt-3 pt-3 border-t border-white/5">
-                          <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Batting Milestones</div>
-                          <div className="grid grid-cols-4 gap-1.5">
-                            <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                              <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">50s</div>
-                              <div className="font-display text-xs font-bold text-cyan-400 mt-0.5">
-                                {activeBatStats?.fifties ?? 0}
+                        {/* Milestone Stats Grid - only visible when country filter is not active */}
+                        {!hasCountryFilter && (
+                          <div className="mt-3 pt-3 border-t border-white/5">
+                            <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Batting Milestones</div>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                                <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">50s</div>
+                                <div className="font-display text-xs font-bold text-cyan-400 mt-0.5">
+                                  {activeBatStats?.fifties ?? 0}
+                                </div>
                               </div>
-                            </div>
-                            <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                              <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">100s</div>
-                              <div className="font-display text-xs font-bold text-amber-400 mt-0.5">
-                                {activeBatStats?.hundreds ?? 0}
+                              <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                                <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">100s</div>
+                                <div className="font-display text-xs font-bold text-amber-400 mt-0.5">
+                                  {activeBatStats?.hundreds ?? 0}
+                                </div>
                               </div>
-                            </div>
-                            <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                              <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">200s</div>
-                              <div className="font-display text-xs font-bold text-red-400 mt-0.5">
-                                {activeBatStats?.double_hundreds ?? 0}
+                              <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                                <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">200s</div>
+                                <div className="font-display text-xs font-bold text-red-400 mt-0.5">
+                                  {activeBatStats?.double_hundreds ?? 0}
+                                </div>
                               </div>
-                            </div>
-                            <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                              <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">Ducks</div>
-                              <div className="font-display text-xs font-bold text-zinc-400 mt-0.5">
-                                {activeBatStats?.ducks ?? 0}
+                              <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                                <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">Ducks</div>
+                                <div className="font-display text-xs font-bold text-zinc-400 mt-0.5">
+                                  {activeBatStats?.ducks ?? 0}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </>
                     ) : (
                       <>
@@ -648,53 +709,55 @@ export function PlayerExplorer() {
                           <div className="rounded-xl bg-white/[0.02] p-2.5 ring-1 ring-white/5">
                             <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Wickets</div>
                             <div className="font-display text-sm font-bold text-white">
-                              {activeBowlStats?.wickets ?? "0"}
+                              {bowlWickets}
                             </div>
                           </div>
                           <div className="rounded-xl bg-white/[0.02] p-2.5 ring-1 ring-white/5">
                             <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Economy</div>
                             <div className="font-display text-sm font-bold text-white">
-                              {activeBowlStats?.economy ?? "0"}
+                              {bowlEco}
                             </div>
                           </div>
                           <div className="rounded-xl bg-white/[0.02] p-2.5 ring-1 ring-white/5">
                             <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Avg</div>
                             <div className="font-display text-sm font-bold text-white">
-                              {activeBowlStats?.average ?? "0"}
+                              {bowlAvg}
                             </div>
                           </div>
                           <div className="rounded-xl bg-white/[0.02] p-2.5 ring-1 ring-white/5">
                             <div className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">Overs</div>
                             <div className="font-display text-sm font-bold text-white">
-                              {activeBowlStats?.overs ?? (activeBowlStats?.overs_bowled ?? "0")}
+                              {bowlOvers}
                             </div>
                           </div>
                         </div>
 
-                        {/* Milestone Stats Grid */}
-                        <div className="mt-3 pt-3 border-t border-white/5">
-                          <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Bowling Milestones</div>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                              <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">3 Wkts</div>
-                              <div className="font-display text-xs font-bold text-cyan-400 mt-0.5">
-                                {activeBowlStats?.three_wickets ?? 0}
+                        {/* Milestone Stats Grid - only visible when country filter is not active */}
+                        {!hasCountryFilter && (
+                          <div className="mt-3 pt-3 border-t border-white/5">
+                            <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Bowling Milestones</div>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                                <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">3 Wkts</div>
+                                <div className="font-display text-xs font-bold text-cyan-400 mt-0.5">
+                                  {activeBowlStats?.three_wickets ?? 0}
+                                </div>
                               </div>
-                            </div>
-                            <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                              <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">4 Wkts</div>
-                              <div className="font-display text-xs font-bold text-amber-400 mt-0.5">
-                                {activeBowlStats?.four_wickets ?? 0}
+                              <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                                <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">4 Wkts</div>
+                                <div className="font-display text-xs font-bold text-amber-400 mt-0.5">
+                                  {activeBowlStats?.four_wickets ?? 0}
+                                </div>
                               </div>
-                            </div>
-                            <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
-                              <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">5 Wkts+</div>
-                              <div className="font-display text-xs font-bold text-red-400 mt-0.5">
-                                {activeBowlStats?.five_wickets ?? 0}
+                              <div className="rounded-lg bg-black/40 p-2 text-center border border-white/5">
+                                <div className="text-[7px] font-bold text-muted-foreground uppercase tracking-wider">5 Wkts+</div>
+                                <div className="font-display text-xs font-bold text-red-400 mt-0.5">
+                                  {activeBowlStats?.five_wickets ?? 0}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        )}
                       </>
                     )}
                     
