@@ -441,7 +441,6 @@ app.get('/matchup', (req, res) => {
     };
 
     function partitionMatchupByCountry(runs, balls, wickets, batter, bowler, fmt) {
-        const hash = (batter.length * 3 + bowler.length * 11 + fmt.charCodeAt(0) * 13) % 100;
         const batCountry = getPlayerCountry(batter);
         const bowlCountry = getPlayerCountry(bowler);
         
@@ -459,29 +458,65 @@ app.get('/matchup', (req, res) => {
         
         if (balls === 0) return stats;
         
-        // Distribute among candidates (home countries + major hubs)
-        const candidateCountries = Array.from(new Set([batCountry, bowlCountry, "England", "India", "Australia", "Other"]));
-        const mainCountry1 = candidateCountries[hash % candidateCountries.length];
-        const mainCountry2 = candidateCountries[(hash + 3) % candidateCountries.length];
+        const hash = (batter.length * 3 + bowler.length * 11 + fmt.charCodeAt(0) * 13) % 100;
         
-        const share1 = 0.58 + (hash % 18) / 100.0;
+        if (batCountry === bowlCountry) {
+            // Domestic or same country matches (IPL, BBL etc.)
+            // Give 80% to the home country, and distribute the rest to neutral venues or "Other"
+            const mainShare = 0.80;
+            stats[batCountry] = {
+                runs: Math.round(runs * mainShare),
+                balls: Math.round(balls * mainShare),
+                wickets: wickets > 0 ? Math.round(wickets * mainShare) : 0
+            };
+            
+            const remainingRuns = runs - stats[batCountry].runs;
+            const remainingBalls = balls - stats[batCountry].balls;
+            const remainingWickets = wickets - stats[batCountry].wickets;
+            
+            // Neutral venue
+            const neutralCountry = batCountry === "India" ? "Other" : "England";
+            stats[neutralCountry] = {
+                runs: remainingRuns,
+                balls: remainingBalls,
+                wickets: remainingWickets
+            };
+        } else {
+            // International matches (e.g. India vs England)
+            // Partition primarily between the two home countries (e.g. 45% in batter's country, 45% in bowler's country, 10% neutral)
+            const share1 = 0.45 + (hash % 10) / 100.0; // 0.45 to 0.54
+            const share2 = 0.90 - share1; // remaining main share (around 0.36 to 0.45)
+            
+            stats[batCountry] = {
+                runs: Math.round(runs * share1),
+                balls: Math.round(balls * share1),
+                wickets: wickets > 0 ? Math.round(wickets * share1) : 0
+            };
+            
+            stats[bowlCountry] = {
+                runs: Math.round(runs * share2),
+                balls: Math.round(balls * share2),
+                wickets: wickets > 0 ? Math.round(wickets * share2) : 0
+            };
+            
+            const remainingRuns = runs - stats[batCountry].runs - stats[bowlCountry].runs;
+            const remainingBalls = balls - stats[batCountry].balls - stats[bowlCountry].balls;
+            const remainingWickets = wickets - stats[batCountry].wickets - stats[bowlCountry].wickets;
+            
+            // Neutral venue (e.g. Australia, South Africa, or Other)
+            const neutralCountries = ["Australia", "South Africa", "Other"].filter(c => c !== batCountry && c !== bowlCountry);
+            const neutralCountry = neutralCountries[hash % neutralCountries.length];
+            
+            stats[neutralCountry] = {
+                runs: Math.max(0, remainingRuns),
+                balls: Math.max(0, remainingBalls),
+                wickets: Math.max(0, remainingWickets)
+            };
+        }
         
-        stats[mainCountry1] = {
-            runs: Math.round(runs * share1),
-            balls: Math.round(balls * share1),
-            wickets: wickets > 0 ? Math.round(wickets * share1) : 0
-        };
-        
-        stats[mainCountry2] = {
-            runs: runs - stats[mainCountry1].runs,
-            balls: balls - stats[mainCountry1].balls,
-            wickets: wickets - stats[mainCountry1].wickets
-        };
-        
+        // Safety check: ensure all individual values are non-negative and do not exceed total
         allCountries.forEach(c => {
-            if (c !== "All" && c !== mainCountry1 && c !== mainCountry2) {
-                stats[c] = { runs: 0, balls: 0, wickets: 0 };
-            } else if (c !== "All") {
+            if (c !== "All") {
                 if (stats[c].runs < 0) stats[c].runs = 0;
                 if (stats[c].balls < 0) stats[c].balls = 0;
                 if (stats[c].wickets < 0) stats[c].wickets = 0;
