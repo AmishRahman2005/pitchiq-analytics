@@ -138,7 +138,7 @@ export function Hero() {
           <PitchVisual />
 
           <FloatingStat
-            className="left-[-20px] top-[40px]"
+            className="left-1 top-[40px] md:left-[-20px] md:top-[40px]"
             delay={0.4}
             label="Wicket Probability"
             value="34.7%"
@@ -146,7 +146,7 @@ export function Hero() {
             accent="cyan"
           />
           <FloatingStat
-            className="right-[-10px] top-[170px]"
+            className="right-1 top-[170px] md:right-[-10px] md:top-[170px]"
             delay={0.6}
             label="Danger Zone"
             value="Hip · 142kph"
@@ -154,7 +154,7 @@ export function Hero() {
             accent="amber"
           />
           <FloatingStat
-            className="left-[10px] bottom-[20px]"
+            className="left-3 bottom-[20px] md:left-[10px] md:bottom-[20px]"
             delay={0.8}
             label="Plan Confidence"
             value="A+"
