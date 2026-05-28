@@ -359,29 +359,22 @@ export function MatchupSection() {
         )}
       </div>
 
-      {/* Country wise filter */}
-      <div className="mb-8 relative z-20">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+      {/* Country wise filter dropdown */}
+      <div className="mb-8 max-w-xs relative z-20">
+        <label className="block text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">
           Filter matchups by player country
-        </div>
-        <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-2 pr-1">
-          {countries.map((country) => {
-            const isSelected = selectedCountry === country;
-            return (
-              <button
-                key={country}
-                onClick={() => setSelectedCountry(country)}
-                className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition-all duration-300 border cursor-pointer ${
-                  isSelected
-                    ? "bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-400 border-emerald-500/40 shadow-glow-cyan/20 scale-105"
-                    : "bg-white/[0.02] border-white/5 text-muted-foreground hover:bg-white/[0.05] hover:text-white hover:border-white/10"
-                }`}
-              >
-                {country}
-              </button>
-            );
-          })}
-        </div>
+        </label>
+        <select
+          value={selectedCountry}
+          onChange={(e) => setSelectedCountry(e.target.value)}
+          className="w-full rounded-xl border border-white/10 bg-black/60 hover:bg-black/60 transition-colors py-2.5 px-3 text-sm font-bold text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 cursor-pointer"
+        >
+          {countries.map((c) => (
+            <option key={c} value={c} className="bg-[#0b130e] text-white">
+              {c === "All" ? "All Countries" : c}
+            </option>
+          ))}
+        </select>
       </div>
 
       {filteredMatchups.length === 0 && (
