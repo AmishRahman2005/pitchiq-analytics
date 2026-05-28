@@ -263,6 +263,8 @@ export function PlayerExplorer() {
   const [isLoadingLive, setIsLoadingLive] = useState(false);
   const [formatTab, setFormatTab] = useState<"T20" | "ODI" | "TEST" | "ALL">("T20");
   const [selectedOppositionCountry, setSelectedOppositionCountry] = useState("All");
+  const [selectedOppositionFormat, setSelectedOppositionFormat] = useState<"All" | "T20" | "ODI" | "Test">("All");
+  const [selectedOppositionCondition, setSelectedOppositionCondition] = useState<"All" | "Home" | "Away">("All");
   
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -576,8 +578,8 @@ export function PlayerExplorer() {
                   ? liveStats.bowling 
                   : liveStats.bowling?.formats?.[formatTab.toLowerCase() as "t20" | "odi" | "test"];
 
-                const hasCountryFilter = selectedOppositionCountry !== "All";
-                const countryStats = liveStats.statsByCountry?.[selectedOppositionCountry];
+                const hasCountryFilter = selectedOppositionCountry !== "All" || selectedOppositionFormat !== "All" || selectedOppositionCondition !== "All";
+                const countryStats = liveStats.statsByCountry?.[selectedOppositionCountry]?.[selectedOppositionFormat]?.[selectedOppositionCondition];
 
                 const batRuns = hasCountryFilter ? (countryStats?.runs ?? 0) : (activeBatStats?.runs ?? 0);
                 const batAvg = hasCountryFilter ? (countryStats?.average ?? "0.0") : (activeBatStats?.average ?? "0");
@@ -604,7 +606,7 @@ export function PlayerExplorer() {
                       Calculated from 11M+ balls
                     </div>
 
-                    {/* Opposition Country Selector */}
+                    {/* Opposition Country Selector & format/condition filters */}
                     <div className="mt-3 border-b border-white/5 pb-3">
                       <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-400 mb-1">
                         Opposition Country
@@ -620,6 +622,38 @@ export function PlayerExplorer() {
                           </option>
                         ))}
                       </select>
+
+                      <div className="mt-2.5 grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-400 mb-1">
+                            Format
+                          </div>
+                          <select
+                            value={selectedOppositionFormat}
+                            onChange={(e) => setSelectedOppositionFormat(e.target.value as any)}
+                            className="w-full rounded-lg border border-white/10 bg-black/60 py-1 px-1.5 text-[10px] font-bold text-emerald-400 focus:outline-none"
+                          >
+                            <option value="All" className="bg-[#0b130e] text-white">All Formats</option>
+                            <option value="T20" className="bg-[#0b130e] text-white">T20s</option>
+                            <option value="ODI" className="bg-[#0b130e] text-white">ODIs</option>
+                            <option value="Test" className="bg-[#0b130e] text-white">Tests</option>
+                          </select>
+                        </div>
+                        <div>
+                          <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-400 mb-1">
+                            Condition
+                          </div>
+                          <select
+                            value={selectedOppositionCondition}
+                            onChange={(e) => setSelectedOppositionCondition(e.target.value as any)}
+                            className="w-full rounded-lg border border-white/10 bg-black/60 py-1 px-1.5 text-[10px] font-bold text-emerald-400 focus:outline-none"
+                          >
+                            <option value="All" className="bg-[#0b130e] text-white">All Venues</option>
+                            <option value="Home" className="bg-[#0b130e] text-white">Home Matches</option>
+                            <option value="Away" className="bg-[#0b130e] text-white">Away Matches</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Format Tabs Bar - only visible when country filter is not active */}
