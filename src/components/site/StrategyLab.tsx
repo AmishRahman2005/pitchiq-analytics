@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Beaker, 
@@ -93,26 +93,46 @@ export function StrategyLab() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSearchChange = async (q: string) => {
+  const handleSearchChange = (q: string) => {
     setSearchQuery(q);
     if (q.trim().length < 2) {
       setSuggestions([]);
+      setShowSuggestions(false);
       return;
-    }
-    try {
-      const res = await fetch(getApiUrl(`/search?q=${encodeURIComponent(q)}&role=BAT`));
-      if (res.ok) {
-        const data = await res.json();
-        setSuggestions(data);
-      } else {
-        throw new Error();
-      }
-    } catch (e) {
-      const filtered = FALLBACK_BATSMEN.filter(b => b.name.toLowerCase().includes(q.toLowerCase()));
-      setSuggestions(filtered.map(f => ({ name: f.name, details: `LOCAL DATABASE · ${f.details}` })));
     }
     setShowSuggestions(true);
   };
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(getApiUrl(`/search?q=${encodeURIComponent(q)}&role=BAT`), { signal: controller.signal })
+        .then(res => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then(data => {
+          setSuggestions(data);
+        })
+        .catch(err => {
+          if (err.name !== 'AbortError') {
+            const filtered = FALLBACK_BATSMEN.filter(b => b.name.toLowerCase().includes(q.toLowerCase()));
+            setSuggestions(filtered.map(f => ({ name: f.name, details: `LOCAL DATABASE · ${f.details}` })));
+          }
+        });
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchQuery]);
 
   const handleSelectBatsman = async (player: any) => {
     setIsLoading(true);

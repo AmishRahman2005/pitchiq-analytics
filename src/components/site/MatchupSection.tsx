@@ -109,13 +109,21 @@ export function MatchupSection() {
       setBatSuggestions([]);
       return;
     }
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetch(getApiUrl(`/search?q=${encodeURIComponent(batQuery)}&role=BAT`))
+      fetch(getApiUrl(`/search?q=${encodeURIComponent(batQuery)}&role=BAT`), { signal: controller.signal })
         .then(res => res.json())
         .then(data => setBatSuggestions(data))
-        .catch(err => console.error("Error fetching batters autocomplete:", err));
-    }, 150);
-    return () => clearTimeout(timer);
+        .catch(err => {
+          if (err.name !== 'AbortError') {
+            console.error("Error fetching batters autocomplete:", err);
+          }
+        });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [batQuery]);
 
   // Autocomplete fetch for bowler
@@ -124,13 +132,21 @@ export function MatchupSection() {
       setBowlSuggestions([]);
       return;
     }
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetch(getApiUrl(`/search?q=${encodeURIComponent(bowlQuery)}&role=BOWL`))
+      fetch(getApiUrl(`/search?q=${encodeURIComponent(bowlQuery)}&role=BOWL`), { signal: controller.signal })
         .then(res => res.json())
         .then(data => setBowlSuggestions(data))
-        .catch(err => console.error("Error fetching bowlers autocomplete:", err));
-    }, 150);
-    return () => clearTimeout(timer);
+        .catch(err => {
+          if (err.name !== 'AbortError') {
+            console.error("Error fetching bowlers autocomplete:", err);
+          }
+        });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [bowlQuery]);
 
   const simulateMatchup = async () => {

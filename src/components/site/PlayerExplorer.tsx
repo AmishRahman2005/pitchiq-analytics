@@ -318,8 +318,9 @@ export function PlayerExplorer() {
     }
 
     setIsSearching(true);
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetch(getApiUrl(`/search?q=${encodeURIComponent(q)}&role=${role}`))
+      fetch(getApiUrl(`/search?q=${encodeURIComponent(q)}&role=${role}`), { signal: controller.signal })
         .then(res => res.json())
         .then(data => {
           if (data && data.length > 0) {
@@ -330,12 +331,17 @@ export function PlayerExplorer() {
           setIsSearching(false);
         })
         .catch(err => {
-          console.error("Universal search error:", err);
-          setIsSearching(false);
+          if (err.name !== 'AbortError') {
+            console.error("Universal search error:", err);
+            setIsSearching(false);
+          }
         });
-    }, 200);
+    }, 250);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query, role]);
 
   // Load complete profile and Hawk-Eye stats when a database player is selected

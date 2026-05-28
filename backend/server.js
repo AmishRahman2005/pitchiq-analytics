@@ -199,29 +199,54 @@ app.get('/search', (req, res) => {
     }
     
     const matches = [];
+    const seen = new Set();
     
+    function addMatch(value, r) {
+        if (seen.has(value.name)) return;
+        seen.add(value.name);
+        matches.push({
+            name: value.name,
+            role: r,
+            details: r === 'BAT' 
+                ? `LIVE DATABASE · BATTER · ${value.runs.toLocaleString()} RUNS`
+                : `LIVE DATABASE · BOWLER · ${value.wickets} WICKETS`
+        });
+    }
+
+    // Pass 1: search startsWith (lightning fast and highly relevant)
     if (role === 'ALL' || role === 'BAT') {
         for (const [key, value] of batters.entries()) {
-            if (key.includes(q)) {
-                matches.push({
-                    name: value.name,
-                    role: 'BAT',
-                    details: `LIVE DATABASE · BATTER · ${value.runs.toLocaleString()} RUNS`
-                });
+            if (key.startsWith(q)) {
+                addMatch(value, 'BAT');
                 if (matches.length >= 10) break;
             }
         }
     }
     
-    if (role === 'ALL' || role === 'BOWL') {
+    if (matches.length < 10 && (role === 'ALL' || role === 'BOWL')) {
         for (const [key, value] of bowlers.entries()) {
-            if (key.includes(q) && !matches.some(m => m.name === value.name)) {
-                matches.push({
-                    name: value.name,
-                    role: 'BOWL',
-                    details: `LIVE DATABASE · BOWLER · ${value.wickets} WICKETS`
-                });
-                if (matches.length >= 15) break;
+            if (key.startsWith(q)) {
+                addMatch(value, 'BOWL');
+                if (matches.length >= 10) break;
+            }
+        }
+    }
+
+    // Pass 2: fallback search includes (only if we have fewer than 10 matches)
+    if (matches.length < 10 && (role === 'ALL' || role === 'BAT')) {
+        for (const [key, value] of batters.entries()) {
+            if (key.includes(q)) {
+                addMatch(value, 'BAT');
+                if (matches.length >= 10) break;
+            }
+        }
+    }
+
+    if (matches.length < 10 && (role === 'ALL' || role === 'BOWL')) {
+        for (const [key, value] of bowlers.entries()) {
+            if (key.includes(q)) {
+                addMatch(value, 'BOWL');
+                if (matches.length >= 10) break;
             }
         }
     }
